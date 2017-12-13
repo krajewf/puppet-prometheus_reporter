@@ -45,9 +45,34 @@ Puppet::Reports.register_report(:prometheus) do
       values + Array("#{extra[0]}=\"#{extra[1]}\"")
     end
 
+    comments = {
+      "puppet_report" => {
+        "help" => "Unix timestamp of the last puppet run",
+        "type" => "gauge"
+      },
+      "puppet_report_changes" => {
+        "help" => "Resources changed in the last puppet run",
+        "type" => "gauge"
+      },
+      "puppet_report_events" => {
+        "help" => "Puppet::Transaction::Event status break down",
+        "type" => "gauge"
+      },
+      "puppet_report_resources" => {
+        "help" => "Puppet::Resource::Status break down by their state",
+        "type" => "gauge"
+      },
+      "puppet_report_time" => {
+        "help" => "Puppet resource apply time broken down by their type",
+        "type" => "gauge"
+       }
+    }
+
     new_metrics = {}
     unless metrics.empty? || metrics['events'].nil?
       metrics.each do |metric, data|
+        new_metrics["# HELP puppet_report_#{metric}"] = comments["puppet_report_#{metric}"]['help']
+        new_metrics["# TYPE puppet_report_#{metric}"] = comments["puppet_report_#{metric}"]['type']
         data.values.each do |val|
           new_metrics["puppet_report_#{metric}{name=\"#{val[1]}\",#{common_values.join(',')}}"] = val[2]
         end
@@ -55,6 +80,8 @@ Puppet::Reports.register_report(:prometheus) do
     end
 
     epochtime = DateTime.now.new_offset(0).strftime('%Q')
+    new_metrics['# HELP puppet_report'] = comments['puppet_report']['help']
+    new_metrics['# TYPE puppet_report'] = comments['puppet_report']['type']
     new_metrics["puppet_report{#{common_values.join(',')}}"] = epochtime
 
     File.open(filename, 'w') do |file|
